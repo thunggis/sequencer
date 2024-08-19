@@ -54,7 +54,6 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
             max_nonce_for_validation_skip: Default::default(),
             validate_max_n_steps: block_context.versioned_constants().validate_max_n_steps,
             max_recursion_depth: block_context.versioned_constants().max_recursion_depth,
-            chain_info: block_context.chain_info().clone(),
         },
     }
 }
@@ -115,10 +114,10 @@ fn test_instantiate_validator() {
             max_nonce_for_validation_skip: Default::default(),
             validate_max_n_steps: block_context.versioned_constants().validate_max_n_steps,
             max_recursion_depth: block_context.versioned_constants().max_recursion_depth,
-            chain_info: block_context.chain_info().clone(),
         },
     };
-    let blockifier_validator = stateful_validator.instantiate_validator(&mock_state_reader_factory);
+    let blockifier_validator = stateful_validator
+        .instantiate_validator(&mock_state_reader_factory, block_context.chain_info());
     assert!(blockifier_validator.is_ok());
 }
 

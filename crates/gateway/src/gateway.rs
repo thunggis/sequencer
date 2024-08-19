@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use blockifier::context::ChainInfo;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -40,6 +41,7 @@ pub struct AppState {
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub gateway_compiler: GatewayCompiler,
     pub mempool_client: SharedMempoolClient,
+    pub chain_info: ChainInfo,
 }
 
 impl Gateway {
@@ -59,6 +61,7 @@ impl Gateway {
             state_reader_factory,
             gateway_compiler,
             mempool_client,
+            chain_info: config.chain_info.clone(),
         };
         Gateway { config, app_state }
     }
@@ -99,6 +102,7 @@ async fn add_tx(
             app_state.stateful_tx_validator.as_ref(),
             app_state.state_reader_factory.as_ref(),
             app_state.gateway_compiler,
+            &app_state.chain_info,
             tx,
         )
     })
@@ -123,6 +127,7 @@ fn process_tx(
     stateful_tx_validator: &StatefulTransactionValidator,
     state_reader_factory: &dyn StateReaderFactory,
     gateway_compiler: GatewayCompiler,
+    chain_info: &ChainInfo,
     tx: RpcTransaction,
 ) -> GatewayResult<MempoolInput> {
     // TODO(Arni, 1/5/2024): Perform congestion control.
@@ -131,11 +136,8 @@ fn process_tx(
     stateless_tx_validator.validate(&tx)?;
 
     // TODO(Arni): remove copy_of_rpc_tx and use executable_tx directly as the mempool input.
-    let executable_tx = compile_contract_and_build_executable_tx(
-        tx,
-        &gateway_compiler,
-        &stateful_tx_validator.config.chain_info.chain_id,
-    )?;
+    let executable_tx =
+        compile_contract_and_build_executable_tx(tx, &gateway_compiler, &chain_info.chain_id)?;
 
     // Perfom post compilation validations.
     if let Transaction::Declare(executable_declare_tx) = &executable_tx {
@@ -144,7 +146,8 @@ fn process_tx(
         }
     }
 
-    let validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
+    let validator =
+        stateful_tx_validator.instantiate_validator(state_reader_factory, chain_info)?;
     // TODO(Yael 31/7/24): refactor after IntrnalTransaction is ready, delete validate_info and
     // compute all the info outside of run_validate.
     let validate_info = stateful_tx_validator.run_validate(&executable_tx, validator)?;
