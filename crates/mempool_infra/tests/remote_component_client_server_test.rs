@@ -24,9 +24,7 @@ use rstest::rstest;
 use serde::Serialize;
 use starknet_mempool_infra::component_client::{ClientError, ClientResult, RemoteComponentClient};
 use starknet_mempool_infra::component_definitions::{
-    ComponentRequestHandler,
-    ServerError,
-    APPLICATION_OCTET_STREAM,
+    ComponentRequestHandler, ResponseAndAlive, ServerError, APPLICATION_OCTET_STREAM
 };
 use starknet_mempool_infra::component_server::{ComponentServerStarter, RemoteComponentServer};
 use tokio::sync::Mutex;
@@ -264,7 +262,7 @@ async fn test_retry_request() {
             should_send_ok: Arc<Mutex<bool>>,
         ) -> Result<Response<Body>, hyper::Error> {
             let mut should_send_ok = should_send_ok.lock().await;
-            let body = ComponentAResponse::AGetValue(VALID_VALUE_A);
+            let body = ResponseAndAlive::Original(ComponentAResponse::AGetValue(VALID_VALUE_A));
             let ret = if *should_send_ok {
                 Response::builder()
                     .status(StatusCode::OK)

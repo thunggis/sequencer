@@ -1,6 +1,10 @@
 use tokio::sync::mpsc::{channel, Sender};
 
-use crate::component_definitions::ComponentRequestAndResponseSender;
+use crate::component_definitions::{
+    ComponentRequestAndResponseSender,
+    RequestAndAlive,
+    ResponseAndAlive,
+};
 
 /// The `LocalComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously.
@@ -51,6 +55,7 @@ use crate::component_definitions::ComponentRequestAndResponseSender;
 /// # Notes
 /// - The `LocalComponentClient` struct is designed to work in an asynchronous environment,
 ///   utilizing Tokio's async runtime and channels.
+
 pub struct LocalComponentClient<Request, Response>
 where
     Request: Send + Sync,
@@ -70,12 +75,29 @@ where
 
     // TODO(Tsabary, 1/5/2024): Consider implementation for messages without expected responses.
 
-    pub async fn send(&self, request: Request) -> Response {
-        let (res_tx, mut res_rx) = channel::<Response>(1);
+    async fn internal_send(&self, request: RequestAndAlive<Request>) -> ResponseAndAlive<Response> {
+        let (res_tx, mut res_rx) = channel::<ResponseAndAlive<Response>>(1);
         let request_and_res_tx = ComponentRequestAndResponseSender { request, tx: res_tx };
         self.tx.send(request_and_res_tx).await.expect("Outbound connection should be open.");
 
         res_rx.recv().await.expect("Inbound connection should be open.")
+    }
+
+    pub async fn send(&self, request: Request) -> Response {
+        let request = RequestAndAlive::Original(request);
+        let res = self.internal_send(request).await;
+        match res {
+            ResponseAndAlive::Original(response) => response,
+            _ => panic!("Unexpected response variant."),
+        }
+    }
+
+    pub async fn is_alive(&self) -> bool {
+        let res = self.internal_send(RequestAndAlive::<Request>::IsAlive).await;
+        match res {
+            ResponseAndAlive::IsAlive(is_alive) => is_alive,
+            _ => panic!("Unexpected response variant."),
+        }
     }
 }
 

@@ -12,9 +12,28 @@ use validator::Validate;
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 const DEFAULT_RETRIES: usize = 3;
 
+#[derive(Debug, Deserialize, Serialize)]
+pub enum RequestAndAlive<Request> {
+    Original(Request),
+    IsAlive,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum ResponseAndAlive<Response> {
+    Original(Response),
+    IsAlive(bool),
+}
+
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
     async fn handle_request(&mut self, request: Request) -> Response;
+}
+
+#[async_trait]
+pub trait ComponentMonitor {
+    async fn is_alive(&mut self) -> bool {
+        true
+    }
 }
 
 pub struct ComponentCommunication<T: Send + Sync> {
@@ -41,8 +60,8 @@ where
     Request: Send + Sync,
     Response: Send + Sync,
 {
-    pub request: Request,
-    pub tx: Sender<Response>,
+    pub request: RequestAndAlive<Request>,
+    pub tx: Sender<ResponseAndAlive<Response>>,
 }
 
 pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
