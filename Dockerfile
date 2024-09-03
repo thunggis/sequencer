@@ -50,8 +50,10 @@ ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
 #####################
 # Stage 1 (planer): #
 #####################
+
 FROM chef AS planner
 COPY . .
+
 # * Running Cargo Chef prepare that will generate recipe.json which will be used in the next stage.
 RUN cargo chef prepare
 
@@ -60,6 +62,12 @@ RUN cargo chef prepare
 #####################
 # Compile all the dependecies using Cargo Chef cook.
 FROM chef AS cacher
+
+
+COPY --from=chef /usr/lib/llvm-18/ /usr/lib/llvm-18/
+ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
+ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
+ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
 
 # Copy recipe.json from planner stage
 COPY --from=planner /app/recipe.json recipe.json
