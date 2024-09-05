@@ -72,20 +72,28 @@ RUN apt update -y && apt install -y --ignore-missing --allow-downgrades \
     libmlir-18-dev \
     libpolly-18-dev \
     llvm-18-dev \
-    mlir-18-tools \
-    clang-18
+    mlir-18-tools
+    # clang-18
 ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
 ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
 ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
 
 
+RUN rustup target add x86_64-unknown-linux-gnu
 RUN rustup target add x86_64-unknown-linux-musl
 
 ENV PATH=/musl/bin:$PATH
 
+# ENV PREFIX=/musl
+ENV LIBZ_SYS_STATIC=1
+
+ENV PKG_CONFIG_ALLOW_CROSS=true
+# ENV PKG_CONFIG_PATH=/musl/lib/pkgconfig
+ENV PKG_CONFIG_ALL_STATIC=true
+
 ENV CARGO_BUILD_TARGET=x86_64-unknown-linux-musl
-ENV RUST_ARCH=x86_64-unknown-linux-musl
-ENV RUSTUP_HOME=/root/.rustup
+# ENV RUST_ARCH=x86_64-unknown-linux-musl
+# ENV RUSTUP_HOME=/root/.rustup
 ENV CC=musl-gcc
 
 RUN echo "-----------0---------"
@@ -93,6 +101,7 @@ RUN apt-get install -y python3-pip
 RUN pip3 install ziglang
 RUN cargo install --locked cargo-zigbuild
 RUN echo "-----------a---------"
+ENV DYLD_FALLBACK_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
 RUN RUST_BACKTRACE=debug RUSTFLAGS='-C codegen-units=1' cargo zigbuild --target x86_64-unknown-linux-musl --release --package papyrus_node --verbose
 # RUN RUST_BACKTRACE=debug cargo zigbuild --target x86_64-unknown-linux-musl --release --package papyrus_node --verbose
 RUN echo "-----------b---------"
